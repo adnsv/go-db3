@@ -3,6 +3,7 @@ package orm
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 )
@@ -178,6 +179,14 @@ func bind_struct_fields(columns nameset, bb *bindings, all_optional bool, struct
 			continue
 		}
 
+		conditional := orm_content[0] == '$'
+		if conditional {
+			orm_content = orm_content[1:]
+			if orm_content == "" {
+				panic("invalid orm tag syntax " + orm_content + " in field " + field_t.Name)
+			}
+		}
+
 		optional := orm_content[0] == '?'
 		if optional {
 			orm_content = orm_content[1:]
@@ -204,9 +213,14 @@ func bind_struct_fields(columns nameset, bb *bindings, all_optional bool, struct
 			continue
 		}
 
+		expr := orm
+		if conditional {
+			expr = fmt.Sprintf("(case when %s notnull then %s else \"\" end)", orm, orm)
+		}
+
 		dst := field_v.Addr().Interface()
 		bb.receivers = append(bb.receivers, dst)
-		bb.selectors = append(bb.selectors, orm)
+		bb.selectors = append(bb.selectors, expr)
 	}
 }
 

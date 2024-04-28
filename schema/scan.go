@@ -115,7 +115,7 @@ func Scan(src Querier) (*Database, error) {
 			return nil, err
 		}
 
-		slices.SortStableFunc(pk_infos, func(a, b *pk_info) bool { return a.i < b.i })
+		slices.SortStableFunc(pk_infos, func(a, b *pk_info) int { return a.i - b.i })
 		for _, info := range pk_infos {
 			table.PK = append(table.PK, info.n)
 		}

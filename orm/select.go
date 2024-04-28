@@ -6,11 +6,16 @@ import "fmt"
 //
 // T needs to have its fields tagged with orm attributes:
 //
-//   - use `orm:"fieldname"“ for mandatory fields
+//   - use `orm:"fieldname"` for mandatory fields
 //   - use `orm:"?fieldname"` for optional fields
 //   - use `orm:"fieldname|alternative"` to match a field to any of the specified columns
 //   - use `orm:"!"` for structural child filds to link to their fields
 //   - use `orm:"?"` for structural child filds to optionally link to their fields
+//
+// Special cases:
+//   - use `orm:"$fieldname"` or `orm:"$?fieldname"` to bind nullable string fields
+//     to non-pointer string receivers, this generates conditional sql binding in
+//     the form: `(case when fieldname notnull then fieldname else "" end)`
 //
 func Select[T any](src Querier, table *Table, opts Options, on_row func(t *T) error) error {
 	// internal temporary that gets populated with results from row.Scan

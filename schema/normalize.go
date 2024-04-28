@@ -79,20 +79,30 @@ func NormalizeNames(t *Table, uppercase bool) {
 	}
 }
 
+func compStrings(a, b string) int {
+	if a == b {
+		return 0
+	} else if a < b {
+		return -1
+	} else {
+		return +1
+	}
+}
+
 func SortColumns(t *Table) {
-	slices.SortStableFunc(t.Columns, func(a, b *Column) bool {
-		return a.Name < b.Name
+	slices.SortStableFunc(t.Columns, func(a, b *Column) int {
+		return compStrings(a.Name, b.Name)
 	})
 }
 
 func SortIndices(t *Table) {
-	slices.SortStableFunc(t.Indices, func(a, b *Index) bool {
-		return a.Name < b.Name
+	slices.SortStableFunc(t.Indices, func(a, b *Index) int {
+		return compStrings(a.Name, b.Name)
 	})
 }
 
 func SortTables(tt []*Table) {
-	slices.SortStableFunc(tt, func(a, b *Table) bool {
-		return a.Name < b.Name
+	slices.SortStableFunc(tt, func(a, b *Table) int {
+		return compStrings(a.Name, b.Name)
 	})
 }
