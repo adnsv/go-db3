@@ -22,6 +22,8 @@ const (
 	Date      = ColumnType("date")
 	Timestamp = ColumnType("timestamp")
 	UUID      = ColumnType("uuid")
+	JSON      = ColumnType("json")
+	JSONB     = ColumnType("jsonb")
 )
 
 type Literal interface {

@@ -29,6 +29,10 @@ func NormalizeType(s ColumnType) ColumnType {
 		return Timestamp
 	case "uuid", "guid":
 		return UUID
+	case "json":
+		return JSON
+	case "jsonb":
+		return JSONB
 	default:
 		for _, prefix := range []string{
 			"character(",
