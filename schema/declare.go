@@ -92,6 +92,21 @@ func (t *Table) CreateStatements(w io.Writer, flags ...CreateFlag) {
 		out.WriteString("primary key (" + strings.Join(t.PK, ",") + ")")
 	}
 
+	for _, fk := range t.ForeignKeys {
+		indented()
+		out.WriteString("foreign key (" + strings.Join(fk.ChildKey, ", ") + ")")
+		out.WriteString(" references " + fk.ParentTable)
+		if len(fk.ParentKey) > 0 {
+			out.WriteString("(" + strings.Join(fk.ParentKey, ", ") + ")")
+		}
+		if fk.OnDelete != ForeignKeyAction(0) {
+			out.WriteString(" on delete " + fk.OnDelete.String())
+		}
+		if fk.OnUpdate != ForeignKeyAction(0) {
+			out.WriteString(" on update " + fk.OnUpdate.String())
+		}
+	}
+
 	out.WriteString("\n)")
 	options := []string{}
 	if t.WithoutRowID {

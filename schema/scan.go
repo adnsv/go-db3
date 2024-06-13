@@ -3,6 +3,7 @@ package schema
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"golang.org/x/exp/slices"
 )
@@ -151,6 +152,49 @@ func Scan(src Querier) (*Database, error) {
 				return err
 			}
 			table.Indices = append(table.Indices, index)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		comma_split := func(s string) []string {
+			r := strings.Split(s, ",")
+			for i, v := range r {
+				r[i] = strings.TrimSpace(v)
+			}
+			return r
+		}
+
+		q = fmt.Sprintf("pragma foreign_key_list([%s])", table.Name)
+		err = query(src, q, nil, func(row *sql.Rows) error {
+			var id int
+			var seq int
+			var parent_table string
+			var child_key string
+			var parent_key string
+			var on_update string
+			var on_delete string
+			var match string
+			err := row.Scan(&id, &seq, &parent_table, &child_key, &parent_key, &on_update, &on_delete, &match)
+			if err != nil {
+				return err
+			}
+			fk := &ForeignKey{
+				ChildKey:    comma_split(child_key),
+				ParentTable: parent_key,
+				ParentKey:   comma_split(parent_key),
+			}
+			var ok bool
+			fk.OnUpdate, ok = fkValue(strings.ToLower(on_update))
+			if !ok {
+				return fmt.Errorf("invalid foreign key action value '%s'", on_update)
+			}
+			fk.OnDelete, ok = fkValue(strings.ToLower(on_delete))
+			if !ok {
+				return fmt.Errorf("invalid foreign key action value '%s'", on_update)
+			}
+			table.ForeignKeys = append(table.ForeignKeys, fk)
 			return nil
 		})
 		if err != nil {

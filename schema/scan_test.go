@@ -12,9 +12,9 @@ func ExampleDatabase() {
 
 	db, _ := sql.Open("sqlite3", ":memory:")
 	_, err := db.Exec(`
-		create table t (
-			id       int64 not null unique,
-			uid      uuid  not null,
+		create table t1 (
+			id       int64,
+			uid      uuid  not null unique,
 			n1       int   default 42,
 			n2       int   default null,
 			n3       int,
@@ -29,7 +29,19 @@ func ExampleDatabase() {
 			s6       text  not null default "null",
 			s7       text  not null default null,
 			s8       text  not null,
-			f1		 timestamp not null default current_timestamp
+			f1		 timestamp not null default current_timestamp,
+			primary key (id)
+		);
+	`)
+	if err != nil {
+		fmt.Print(err)
+	}
+	_, err = db.Exec(`
+		create table t2 (
+			id      int64 not null unique,
+			t_id    int64  not null,
+			primary key (id)
+			foreign key (t_id) references t(id) on delete cascade on update cascade
 		);
 	`)
 	if err != nil {
@@ -45,9 +57,22 @@ func ExampleDatabase() {
 	}
 
 	// Output:
-	// - table: t
+	// - table: t2
 	//   columns:
 	//     - {name: id, type: int64}
+	//     - {name: t_id, type: int64}
+	//   indices:
+	//     - {name: sqlite_autoindex_t2_1, unique: true}
+	//   pk: [id]
+	//   foreign_keys:
+	//     - child_key: [t_id]
+	//       parent_table: id
+	//       parent_key: [id]
+	//       on_delete: cascade
+	//       on_update: cascade
+	// - table: t1
+	//   columns:
+	//     - {name: id, type: int64, nullable: true}
 	//     - {name: uid, type: uuid}
 	//     - {name: n1, type: INT, nullable: true, default: 42}
 	//     - {name: n2, type: INT, nullable: true, default: null}
@@ -65,6 +90,8 @@ func ExampleDatabase() {
 	//     - {name: s8, type: TEXT}
 	//     - {name: f1, type: timestamp, default: CURRENT_TIMESTAMP}
 	//   indices:
-	//     - {name: sqlite_autoindex_t_1, unique: true}
+	//     - {name: sqlite_autoindex_t1_2, unique: true}
+	//     - {name: sqlite_autoindex_t1_1, unique: true}
+	//   pk: [id]
 
 }

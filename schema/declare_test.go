@@ -17,7 +17,15 @@ func ExampleTable_CreateStatements() {
 			{Name: "untyped", Nullable: true},
 			{Name: "age", Type: Int, Nullable: true},
 		},
-		PK:           []string{"uid"},
+		PK: []string{"uid"},
+		ForeignKeys: []*ForeignKey{
+			{
+				ChildKey:    []string{"uid"},
+				ParentTable: "other_table", ParentKey: []string{"uid"},
+				OnDelete: Cascade,
+				OnUpdate: Cascade,
+			},
+		},
 		WithoutRowID: true,
 		Indices: []*Index{
 			{Name: "idx_name", Columns: []string{"name"}, Unique: true},
@@ -35,7 +43,8 @@ func ExampleTable_CreateStatements() {
 	//     deleted_at  timestamp,
 	//     untyped,
 	//     age         int,
-	//     primary key (uid)
+	//     primary key (uid),
+	//     foreign key (uid) references other_table(uid) on delete cascade on update cascade
 	// ) without rowid;
 	// create unique index idx_name on MyTable(name);
 
