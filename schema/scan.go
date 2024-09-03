@@ -79,7 +79,7 @@ func Scan(src Querier) (*Database, error) {
 		}
 		pk_infos := []*pk_info{}
 
-		q := fmt.Sprintf("pragma table_info([%s])", table.Name)
+		q := fmt.Sprintf("pragma table_xinfo([%s])", table.Name)
 		err = query(src, q, nil, func(row *sql.Rows) error {
 			var cid int
 			var name string
@@ -87,7 +87,8 @@ func Scan(src Querier) (*Database, error) {
 			var notnull int
 			var dfltValue sql.NullString
 			var pk int
-			err := row.Scan(&cid, &name, &typeName, &notnull, &dfltValue, &pk)
+			var hidden int
+			err := row.Scan(&cid, &name, &typeName, &notnull, &dfltValue, &pk, &hidden)
 			if err != nil {
 				return err
 			}
@@ -100,12 +101,24 @@ func Scan(src Querier) (*Database, error) {
 				dflt = parseLiteral(dfltValue.String)
 			}
 
-			table.Columns = append(table.Columns, &Column{
+			col := &Column{
 				Name:     name,
 				Type:     ColumnType(typeName),
 				Nullable: nullable,
 				Default:  dflt,
-			})
+			}
+
+			if hidden == 2 || hidden == 3 {
+				// WARNING: these are generated columns
+				// TODO: figure out if extracting the original generator expression is feasible
+				if hidden == 2 {
+					col.Generated = &Generated{Storage: Virtual}
+				} else if hidden == 3 {
+					col.Generated = &Generated{Storage: Stored}
+				}
+			}
+
+			table.Columns = append(table.Columns, col)
 
 			if pk > 0 {
 				pk_infos = append(pk_infos, &pk_info{i: pk, n: name})
@@ -281,7 +294,15 @@ func (table *Table) CheckIndices(required map[string]*Index) *ErrIndices {
 
 // CompatibleTo returns true if both column signatures are compatible.
 func (column *Column) CompatibleTo(info *Column) bool {
-	return column.Nullable == info.Nullable
+	if column.Nullable != info.Nullable {
+		return false
+	}
+
+	if (column.Generated == nil) != (info.Generated == nil) {
+		return false
+	}
+
+	return true
 }
 
 func (idx *Index) CompatibleTo(other *Index) bool {

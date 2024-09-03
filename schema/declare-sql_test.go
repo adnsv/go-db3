@@ -16,6 +16,7 @@ func ExampleTable_CreateStatements() {
 			{Name: "deleted_at", Type: Timestamp, Nullable: true},
 			{Name: "untyped", Nullable: true},
 			{Name: "age", Type: Int, Nullable: true},
+			{Name: "gen", Generated: &Generated{Expression: `name + " " + age`, Storage: Virtual}},
 		},
 		PK: []string{"uid"},
 		ForeignKeys: []*ForeignKey{
@@ -43,9 +44,9 @@ func ExampleTable_CreateStatements() {
 	//     deleted_at  timestamp,
 	//     untyped,
 	//     age         int,
+	//     gen                    not null generated always as (name + " " + age) virtual,
 	//     primary key (uid),
 	//     foreign key (uid) references other_table(uid) on delete cascade on update cascade
 	// ) without rowid;
 	// create unique index idx_name on MyTable(name);
-
 }

@@ -2,6 +2,7 @@ package schema
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -30,6 +31,7 @@ type Literal interface {
 	json.Marshaler
 	yaml.Marshaler
 	SQLLiteral() string
+	SqliteXXLiteral() string
 }
 
 type LiteralInt int64
@@ -43,30 +45,43 @@ type NULL struct{}
 func (v LiteralInt) SQLLiteral() string           { return strconv.FormatInt(int64(v), 10) }
 func (v LiteralInt) MarshalJSON() ([]byte, error) { return []byte(v.SQLLiteral()), nil }
 func (v LiteralInt) MarshalYAML() (any, error)    { return int64(v), nil }
+func (v LiteralInt) SqliteXXLiteral() string      { return strconv.FormatInt(int64(v), 10) }
 
 func (v RawLiteral) SQLLiteral() string           { return string(v) }
 func (v RawLiteral) MarshalJSON() ([]byte, error) { return []byte(v), nil }
 func (v RawLiteral) MarshalYAML() (any, error)    { return string(v), nil }
+func (v RawLiteral) SqliteXXLiteral() string      { return fmt.Sprintf("%q", v) }
 
 func (v LiteralBoolean) SQLLiteral() string           { return strconv.FormatBool(bool(v)) }
 func (v LiteralBoolean) MarshalJSON() ([]byte, error) { return []byte(v.SQLLiteral()), nil }
 func (v LiteralBoolean) MarshalYAML() (any, error)    { return bool(v), nil }
+func (v LiteralBoolean) SqliteXXLiteral() string {
+	if v {
+		return "schema::literal_true"
+	} else {
+		return "schema::literal_false"
+	}
+}
 
 func (v CurrentTime) SQLLiteral() string           { return "CURRENT_TIME" }
 func (v CurrentTime) MarshalJSON() ([]byte, error) { return []byte(`"CURRENT_TIME"`), nil }
 func (v CurrentTime) MarshalYAML() (any, error)    { return v.SQLLiteral(), nil }
+func (v CurrentTime) SqliteXXLiteral() string      { return "schema::current_time" }
 
 func (v CurrentDate) SQLLiteral() string           { return "CURRENT_DATE" }
 func (v CurrentDate) MarshalJSON() ([]byte, error) { return []byte(`"CURRENT_DATE"`), nil }
 func (v CurrentDate) MarshalYAML() (any, error)    { return v.SQLLiteral(), nil }
+func (v CurrentDate) SqliteXXLiteral() string      { return "schema::current_date" }
 
 func (v CurrentTimestamp) SQLLiteral() string           { return "CURRENT_TIMESTAMP" }
 func (v CurrentTimestamp) MarshalJSON() ([]byte, error) { return []byte(`"CURRENT_TIMESTAMP"`), nil }
 func (v CurrentTimestamp) MarshalYAML() (any, error)    { return v.SQLLiteral(), nil }
+func (v CurrentTimestamp) SqliteXXLiteral() string      { return "schema::timestamp" }
 
 func (v NULL) SQLLiteral() string           { return "null" }
 func (v NULL) MarshalJSON() ([]byte, error) { return []byte("null"), nil }
 func (v NULL) MarshalYAML() (any, error)    { return nil, nil }
+func (v NULL) SqliteXXLiteral() string      { return "schema::literal_null" }
 
 func parseLiteral(s string) Literal {
 	switch strings.ToLower(s) {

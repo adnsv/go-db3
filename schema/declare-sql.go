@@ -51,6 +51,9 @@ func (t *Table) CreateStatements(w io.Writer, flags ...CreateFlag) {
 		if f.Default != nil {
 			attrs = append(attrs, "default "+f.Default.SQLLiteral())
 		}
+		if f.Generated != nil {
+			attrs = append(attrs, fmt.Sprintf("generated always as (%s) %s", f.Generated.Expression, f.Generated.Storage))
+		}
 		if len(attrs) > 0 {
 			if len(row) < 2 {
 				row = append(row, "")
@@ -139,23 +142,4 @@ func (t *Table) CreateIndexStatement(idx *Index) string {
 	}
 	return fmt.Sprintf("create %sindex %s on %s(%s);",
 		u, n, t.Name, strings.Join(idx.Columns, ","))
-}
-
-type table_grid [][]string
-
-func measure_cell(s string) int {
-	return len([]rune(s))
-}
-
-func measure_cells(row []string, col_widths *[]int) {
-	for i := range row {
-		w := measure_cell(row[i])
-		if i < len(*col_widths) {
-			if w > (*col_widths)[i] {
-				(*col_widths)[i] = w
-			}
-		} else {
-			*col_widths = append(*col_widths, w)
-		}
-	}
 }

@@ -1,0 +1,124 @@
+package schema
+
+import (
+	"fmt"
+	"io"
+	"strings"
+)
+
+func foreignKeySqliteXX(a ForeignKeyAction) string {
+	switch a {
+	case ForeignKeyAction(0):
+		return ""
+	case SetNull:
+		return "sqlite::set_null"
+	case SetDefault:
+		return "sqlite::set_default"
+	case Cascade:
+		return "sqlite::cascade"
+	case Restrict:
+		return "sqlite::restrict"
+	case NoAction:
+		return "sqlite::no_action"
+	default:
+		return ""
+	}
+}
+
+func (t *Table) CodegenSqliteXX(w io.Writer) {
+	out := w
+
+	fmt.Fprintf(out, "inline const auto %s_table_schema = schema::table_decl{\n", t.Name)
+	fmt.Fprintf(out, "    .name=%q\n", t.Name)
+	fmt.Fprintf(out, "    .fields{\n")
+	for _, f := range t.Columns {
+		fmt.Fprintf(out, "        {\"uid\"")
+
+		if s := string(f.Type); s != "" {
+			fmt.Fprintf(out, ", %s", s)
+		}
+
+		if !f.Nullable {
+			fmt.Fprintf(out, ", schema::not_null")
+		}
+		if f.Default != nil {
+			fmt.Fprintf(out, ", schema::dflt{%s}", f.Default.SqliteXXLiteral())
+		}
+
+		if f.Generated != nil {
+			s := "virtual_"
+			if f.Generated.Storage == Stored {
+				s = "stored"
+			}
+			fmt.Fprintf(out, fmt.Sprintf(", schema::generated{%q, %s}", f.Generated.Expression, s))
+		}
+	}
+	fmt.Fprintf(out, "    },\n")
+
+	if len(t.PK) > 0 {
+		fmt.Fprintf(out, "    .pk{\"%s\"}\n", strings.Join(t.PK, "\",\""))
+	}
+
+	if len(t.ForeignKeys) > 0 {
+		fmt.Fprintf(out, "    .foreign_keys{\n")
+		for _, fk := range t.ForeignKeys {
+			fmt.Fprintf(out, "        schema::foreign_key_decl{\n")
+			fmt.Fprintf(out, "            .child_key = {\"%s\"},\n", strings.Join(fk.ChildKey, "\",\""))
+			fmt.Fprintf(out, "            .parent_table = \"%s\",\n", fk.ParentTable)
+			if len(fk.ParentKey) > 0 {
+				fmt.Fprintf(out, "            .parent_key = {\"%s\"},\n", strings.Join(fk.ParentKey, "\",\""))
+			}
+			if s := foreignKeySqliteXX(fk.OnDelete); s != "" {
+				fmt.Fprintf(out, "        .on_delete = %s,\n", s)
+			}
+			if s := foreignKeySqliteXX(fk.OnUpdate); s != "" {
+				fmt.Fprintf(out, "        .on_update = %s,\n", s)
+			}
+			fmt.Fprintf(out, "        },")
+		}
+		fmt.Fprintf(out, "    },\n")
+
+		if len(t.Indices) > 0 {
+			fmt.Fprintf(out, "    .indices{\n")
+
+			for _, index := range t.Indices {
+				fmt.Fprintf(out, "        {%q}")
+			}
+
+			fmt.Fprintf(out, "    },\n")
+		}
+	}
+
+	out.WriteString("\n)")
+	options := []string{}
+	if t.WithoutRowID {
+		options = append(options, "without rowid")
+	}
+	if t.Strict {
+		options = append(options, "strict")
+	}
+	if len(options) > 0 {
+		out.WriteString(" " + strings.Join(options, ", "))
+	}
+	out.WriteString(";\n")
+
+	for _, idx := range t.Indices {
+		out.WriteString(t.CreateIndexStatement(idx))
+		out.WriteByte('\n')
+	}
+
+	w.Write(out.Bytes())
+}
+
+func (t *Table) CreateIndexStatement(idx *Index) string {
+	n, u := idx.Name, ""
+	if len(n) == 0 {
+		// auto-generate
+		n = t.Name + "_" + strings.Join(idx.Columns, "_") + "_index"
+	}
+	if idx.Unique {
+		u = "unique "
+	}
+	return fmt.Sprintf("create %sindex %s on %s(%s);",
+		u, n, t.Name, strings.Join(idx.Columns, ","))
+}

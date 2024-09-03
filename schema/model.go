@@ -26,11 +26,24 @@ type Table struct {
 
 // Column contains schema scan results for column within a table.
 type Column struct {
-	Name     string     `json:"name" yaml:"name"`
-	Type     ColumnType `json:"type,omitempty" yaml:"type,omitempty"`
-	Nullable bool       `json:"nullable,omitempty" yaml:"nullable,omitempty"`
-	Default  Literal    `json:"default,omitempty" yaml:"default,omitempty"`
-	Comment  string     `json:"comment,omitempty" yaml:"comment,omitempty"`
+	Name      string     `json:"name" yaml:"name"`
+	Type      ColumnType `json:"type,omitempty" yaml:"type,omitempty"`
+	Nullable  bool       `json:"nullable,omitempty" yaml:"nullable,omitempty"`
+	Default   Literal    `json:"default,omitempty" yaml:"default,omitempty"`
+	Generated *Generated `json:"generated,omitempty" yaml:"generated,omitempty"`
+	Comment   string     `json:"comment,omitempty" yaml:"comment,omitempty"`
+}
+
+type GeneratedStorage int
+
+const (
+	Virtual = GeneratedStorage(iota)
+	Stored
+)
+
+type Generated struct {
+	Expression string           `json:"expression" yaml:"expression"`
+	Storage    GeneratedStorage `json:"storage" yaml:"storage"`
 }
 
 type ForeignKeyAction int
@@ -154,6 +167,90 @@ func (i *Index) MarshalYAML() (any, error) {
 	return &n, nil
 }
 
+func gsString(v GeneratedStorage) (string, bool) {
+	switch v {
+	case Virtual:
+		return "virtual", true
+	case Stored:
+		return "stored", true
+	default:
+		return "", false
+	}
+}
+
+func gsValue(s string) (GeneratedStorage, bool) {
+	switch s {
+	case "virtual":
+		return Virtual, true
+	case "stored":
+		return Stored, true
+	default:
+		return Virtual, false
+	}
+}
+
+func (gs GeneratedStorage) String() string {
+	s, ok := gsString(gs)
+	if ok {
+		return s
+	} else {
+		return "<INVALID>"
+	}
+}
+
+var ErrInvalidGeneratedStorage = errors.New("invalid generated storage")
+
+func (v *GeneratedStorage) MarshalJSON() (bb []byte, err error) {
+	if s, ok := gsString(*v); ok {
+		bb, err = json.Marshal(s)
+	} else {
+		err = ErrInvalidGeneratedStorage
+	}
+	return
+}
+
+func (v *GeneratedStorage) MarshalText() (bb []byte, err error) {
+
+	if s, ok := gsString(*v); ok {
+		bb = []byte(s)
+	} else {
+		err = ErrInvalidGeneratedStorage
+	}
+	return
+}
+
+func (v GeneratedStorage) MarshalYAML() (any, error) {
+
+	if s, ok := gsString(v); ok {
+		return s, nil
+	} else {
+		return nil, ErrInvalidGeneratedStorage
+	}
+}
+
+func (v *GeneratedStorage) UnmarshalJSON(b []byte) (err error) {
+	var s string
+	err = json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+	if g, ok := gsValue(s); ok {
+		*v = g
+	} else {
+		err = ErrInvalidGeneratedStorage
+	}
+	return
+}
+
+func (v *GeneratedStorage) UnmarshalText(b []byte) (err error) {
+	if g, ok := gsValue(string(b)); ok {
+		*v = g
+	} else {
+		err = ErrInvalidForeignKeyAction
+	}
+	return
+}
+
 func fkString(a ForeignKeyAction) (string, bool) {
 	switch a {
 	case ForeignKeyAction(0):
@@ -193,8 +290,7 @@ func fkValue(s string) (ForeignKeyAction, bool) {
 }
 
 func (a ForeignKeyAction) String() string {
-	s, ok := fkString(a)
-	if ok {
+	if s, ok := fkString(a); ok {
 		return s
 	} else {
 		return "<INVALID>"
@@ -204,8 +300,7 @@ func (a ForeignKeyAction) String() string {
 var ErrInvalidForeignKeyAction = errors.New("invalid foreign key action")
 
 func (a *ForeignKeyAction) MarshalJSON() (bb []byte, err error) {
-	s, ok := fkString(*a)
-	if ok {
+	if s, ok := fkString(*a); ok {
 		bb, err = json.Marshal(s)
 	} else {
 		err = ErrInvalidForeignKeyAction
@@ -214,8 +309,7 @@ func (a *ForeignKeyAction) MarshalJSON() (bb []byte, err error) {
 }
 
 func (a *ForeignKeyAction) MarshalText() (bb []byte, err error) {
-	s, ok := fkString(*a)
-	if ok {
+	if s, ok := fkString(*a); ok {
 		bb = []byte(s)
 	} else {
 		err = ErrInvalidForeignKeyAction
@@ -224,8 +318,7 @@ func (a *ForeignKeyAction) MarshalText() (bb []byte, err error) {
 }
 
 func (a ForeignKeyAction) MarshalYAML() (any, error) {
-	s, ok := fkString(a)
-	if ok {
+	if s, ok := fkString(a); ok {
 		return s, nil
 	} else {
 		return nil, ErrInvalidForeignKeyAction
@@ -238,8 +331,7 @@ func (a *ForeignKeyAction) UnmarshalJSON(b []byte) (err error) {
 	if err != nil {
 		return err
 	}
-	v, ok := fkValue(s)
-	if ok {
+	if v, ok := fkValue(s); ok {
 		*a = v
 	} else {
 		err = ErrInvalidForeignKeyAction
@@ -248,8 +340,7 @@ func (a *ForeignKeyAction) UnmarshalJSON(b []byte) (err error) {
 }
 
 func (a *ForeignKeyAction) UnmarshalText(b []byte) (err error) {
-	v, ok := fkValue(string(b))
-	if ok {
+	if v, ok := fkValue(string(b)); ok {
 		*a = v
 	} else {
 		err = ErrInvalidForeignKeyAction
